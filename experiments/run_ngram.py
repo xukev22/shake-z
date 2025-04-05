@@ -6,10 +6,10 @@ from src.utils.config import CONFIG
 
 def main():
     # Load training, validation, and test data from preprocessed files
-    train_data, val_data, test_data = load_data(CONFIG["data_path"])  # TODO
+    train_data, val_data, test_data = load_data(CONFIG["data_path"])
 
     # Initialize the N-gram model (e.g., with n=3 for trigram)
-    ngram_model = NgramModel(n=CONFIG["ngram_n"])  # TODO
+    ngram_model = NgramModel(n=CONFIG["ngram_n"])
     ngram_model.train(train_data)
 
     # Evaluate using BLEU score on the validation set

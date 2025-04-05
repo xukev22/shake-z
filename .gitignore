@@ -1,0 +1,41 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution/build directories
+build/
+dist/
+*.egg-info/
+
+# Virtual environment directories
+env/
+venv/
+.venv/
+
+# IDE/editor specific files
+.vscode/
+.idea/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Log files
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Checkpoints and model outputs (if not intended for versioning)
+checkpoints/
+
+# Data directories (if the raw or processed data are large and managed separately)
+data/raw/
+data/processed/
+
+# Temporary files
+*.tmp

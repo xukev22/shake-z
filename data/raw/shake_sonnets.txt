@@ -1,6 +1,3 @@
-            (source: https://github.com/kabirchaturvedi/AI-Shakespeare-NLP-Driven-Text-Generation/tree/main)   
-
-
    		  1
   From fairest creatures we desire increase,
   That thereby beauty's rose might never die,

@@ -1,17 +1,19 @@
 import nltk
-from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
 # Uncomment the following line if you haven't already downloaded the required tokenizer data
-# nltk.download('punkt') # TODO
+# nltk.download('punkt')
 
 
-def compute_bleu(model, dataset):
+def compute_bleu(model, dataset, smoothing_function=None):
     """
     Compute the corpus BLEU score for a given model on a dataset.
 
     Args:
-        model: A model with a translate() method that takes a source sentence as input and returns a generated translation.
+        model: A model with a translate() method that takes a source sentence as input
+               and returns a generated translation.
         dataset: A list of tuples in the form (source_sentence, reference_translation).
+        smoothing_function: (Optional) A smoothing function from nltk.translate.bleu_score.SmoothingFunction.
 
     Returns:
         bleu_score: A float representing the corpus BLEU score.
@@ -32,13 +34,14 @@ def compute_bleu(model, dataset):
         hypotheses.append(hyp_tokens)
         references.append(
             [ref_tokens]
-        )  # Note: corpus_bleu expects a list of references per hypothesis.
+        )  # corpus_bleu expects a list of references per hypothesis.
 
-    bleu_score = corpus_bleu(references, hypotheses)
+    bleu_score = corpus_bleu(
+        references, hypotheses, smoothing_function=smoothing_function
+    )
     return bleu_score
 
 
-# Optional: Placeholder for additional metric functions
 def compute_rouge(model, dataset):
     """
     Placeholder function for computing ROUGE scores.
@@ -64,6 +67,9 @@ if __name__ == "__main__":
         ("Another example sentence.", "Another example sentence."),
     ]
 
-    # Compute and print BLEU score
-    score = compute_bleu(dummy_model, dummy_dataset)
-    print("BLEU Score:", score)
+    # Using smoothing function from NLTK's SmoothingFunction (e.g., method1)
+    smoothing_fn = SmoothingFunction().method1
+
+    # Compute and print BLEU score with the smoothing function
+    score = compute_bleu(dummy_model, dummy_dataset, smoothing_function=smoothing_fn)
+    print("BLEU Score with smoothing:", score)

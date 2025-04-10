@@ -1,5 +1,7 @@
-def genz_sonnet_to_arr():
-    file_path = "data/processed/shake_sonnets_genz.txt"
+import random
+
+
+def genz_sonnet_to_arr(file_path):
     try:
         # Read the entire file content
         with open(file_path, "r") as file:
@@ -30,8 +32,7 @@ def genz_sonnet_to_arr():
         return []
 
 
-def shake_sonnet_to_arr():
-    file_path = "data/raw/shake_sonnets.txt"  # Adjust this path if needed
+def shake_sonnet_to_arr(file_path):
     try:
         # Read the entire file content
         with open(file_path, "r") as file:
@@ -64,24 +65,36 @@ def shake_sonnet_to_arr():
         return []
 
 
-# Get the array of sonnets from the shake sonnets file
-sonnet_array = shake_sonnet_to_arr()
+def train_test_split_data(shakespeare, genz, test_ratio=0.2, seed=None):
+    """
+    Splits the paired data of Shakespeare sonnets and their Gen Z translations
+    into training and testing sets.
 
-# Display the resulting array; each element represents a sonnet block without the number at the beginning
-for i in range(len(sonnet_array)):
-    if i < 160:
-        print(sonnet_array[i])
-        print("-" * 40)  # Separator for clarity in the output
+    Parameters:
+        shakespeare (list): List of Shakespeare sonnets.
+        genz (list): List of Gen Z translations corresponding to the sonnets.
+        test_ratio (float): Fraction of data to allocate to the test set (default 0.2).
+        seed (int, optional): Random seed for reproducibility.
 
-print(f"Total sonnets: {len(sonnet_array)}")
+    Returns:
+        tuple: (train_data, test_data) where each element is a tuple (sonnet, translation).
+    """
+    if len(shakespeare) != len(genz):
+        raise ValueError("Both arrays must have the same length.")
 
+    # Pair the corresponding items from both lists
+    combined = list(zip(shakespeare, genz))
 
-# # Get the array of sonnets
-# sonnet_array = genz_sonnet_to_arr()
+    # Set seed if provided for reproducible shuffling
+    if seed is not None:
+        random.seed(seed)
 
-# # Display the resulting array; each element represents a sonnet block without the "Sonnet X" title
-# for sonnet in sonnet_array:
-#     print(sonnet)
-#     print("-" * 40)  # Separator for clarity in the output
+    # Randomly shuffle the paired data
+    random.shuffle(combined)
 
-# print(len(sonnet_array))
+    # Determine the split index
+    test_size = int(len(combined) * test_ratio)
+    test_data = combined[:test_size]
+    train_data = combined[test_size:]
+
+    return train_data, test_data

@@ -1,8 +1,8 @@
 CONFIG = {
     ### Data paths
     #
-    "data_path": "data/processed/",  # Path to your preprocessed dataset
-    "raw_data_path": "data/raw/",  # Optional: path for raw data files
+    "data_path": "data/processed/shake_sonnets_genz.txt",  # Path to your preprocessed dataset
+    "raw_data_path": "data/raw/shake_sonnets.txt",  # Optional: path for raw data files
     #
     #
     ### Model hyperparameters for N-gram model

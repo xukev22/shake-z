@@ -1,6 +1,7 @@
 import random
 import re
 from collections import defaultdict, Counter
+import string
 
 
 class NgramModel:
@@ -61,9 +62,14 @@ class NgramModel:
                 self.context_counts[context] += 1
 
         # For each source word, choose the target word with the highest count.
-        self.mapping = {
-            s: max(t_counts, key=t_counts.get) for s, t_counts in mapping_counts.items()
-        }
+        self.mapping = {}
+        for s, t_counts in mapping_counts.items():
+            # remove punctuation candidates
+            for p in list(t_counts):
+                if all(ch in string.punctuation for ch in p):
+                    del t_counts[p]
+            if t_counts:
+                self.mapping[s] = max(t_counts, key=t_counts.get)
 
     def generate_word(self, context):
         """
@@ -75,12 +81,19 @@ class NgramModel:
         Returns:
             str: The next word sampled from the model.
         """
-        if context not in self.ngram_counts:
-            return "</s>"
-        choices, counts = zip(*self.ngram_counts[context].items())
-        total = sum(counts)
-        probabilities = [count / total for count in counts]
-        return random.choices(choices, probabilities)[0]
+        if context in self.ngram_counts:
+            choices, counts = zip(*self.ngram_counts[context].items())
+            total = sum(counts)
+            probabilities = [c / total for c in counts]
+            return random.choices(choices, probabilities)[0]
+        # BACKOFF: sample from global unigram (excluding start/end)
+        all_words = [
+            w
+            for w in self.vocab
+            if w not in ("<s>", "</s>")
+            and not all(ch in string.punctuation for ch in w)
+        ]
+        return random.choice(all_words)
 
     def translate(self, source_sentence):
         """
@@ -98,22 +111,24 @@ class NgramModel:
         """
         source_tokens = self.tokenize(source_sentence.lower())
         translated_tokens = []
-        # Initialize context with start tokens.
         context = ["<s>"] * (self.n - 1)
+
         for word in source_tokens:
-            # Direct substitution if available.
             if word in self.mapping:
                 target_word = self.mapping[word]
             else:
-                # Otherwise, generate the next word based on the current context.
                 target_word = self.generate_word(tuple(context))
+
+            # --- collapse repeated punctuation ---
+            if target_word.strip() in string.punctuation:
+                if translated_tokens and translated_tokens[-1] == target_word:
+                    # skip this token to avoid repetition
+                    continue
+
             translated_tokens.append(target_word)
-            # Update the context by sliding one word forward.
             context = context[1:] + [target_word]
-        # Remove any end-of-sentence tokens before returning.
-        final_tokens = [
-            token for token in translated_tokens if token not in ["</s>", "<s>"]
-        ]
+
+        final_tokens = [t for t in translated_tokens if t not in ("</s>", "<s>")]
         return " ".join(final_tokens)
 
 

@@ -66,7 +66,7 @@ class TransformerModel(nn.Module):
         return output
 
 
-# Quick test block (optional)
+# test block
 if __name__ == "__main__":
     # Define a basic config for testing purposes
     config = {

@@ -59,7 +59,7 @@ def main():
         }
 
         save_results(
-            "results/transformer.csv",
+            "results/lstm.csv",
             params=params,
             metrics={"bleu": bleu_score, "chrf": chrf_score},
             samples=samples,

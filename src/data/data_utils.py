@@ -46,30 +46,88 @@ def split_data(pairs, test_size=0.1, val_size=0.1, random_state=42):
 
 class TranslationDataset(Dataset):
     """
-    Simple PyTorch Dataset for translation pairs.
-    Each item is a dict: {'source': str, 'target': str}.
+    PyTorch Dataset that tokenizes on the fly.
+
+    Each item is a dict with:
+      - input_ids:         LongTensor [max_length]
+      - attention_mask:    LongTensor [max_length]
+      - labels:            LongTensor [max_length]  (with pad tokens masked to -100)
     """
 
-    def __init__(self, data_pairs):
-        self.data = data_pairs
+    def __init__(self, data_pairs, tokenizer, max_length=50):
+        """
+        Args:
+            data_pairs (List[Tuple[str,str]]): list of (source, target) strings
+            tokenizer (PreTrainedTokenizer): e.g. T5Tokenizer
+            max_length (int): maximum sequence length for both source & target
+        """
+        self.pairs = data_pairs
+        self.tokenizer = tokenizer
+        self.max_length = max_length
 
     def __len__(self):
-        return len(self.data)
+        return len(self.pairs)
 
     def __getitem__(self, idx):
-        src, tgt = self.data[idx]
-        return {"source": src, "target": tgt}
+        src, tgt = self.pairs[idx]
+        # encode source
+        enc = self.tokenizer(
+            src,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        # encode target
+        dec = self.tokenizer(
+            tgt,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        # prepare labels (mask pad tokens as -100 so they’re ignored in loss)
+        labels = dec.input_ids.clone()
+        labels[labels == self.tokenizer.pad_token_id] = -100
+
+        return {
+            "input_ids": enc.input_ids.squeeze(0),
+            "attention_mask": enc.attention_mask.squeeze(0),
+            "labels": labels.squeeze(0),
+        }
 
 
-def create_dataloaders(train_pairs, val_pairs, test_pairs, batch_size=32, shuffle=True):
+def create_dataloaders(
+    train_pairs,
+    val_pairs,
+    test_pairs,
+    tokenizer,
+    max_length,
+    batch_size=32,
+    shuffle=True,
+):
     """
-    Wrap train/val/test pairs in DataLoaders.
-    Returns: train_loader, val_loader, test_loader
-    """
-    train_ds = TranslationDataset(train_pairs)
-    val_ds = TranslationDataset(val_pairs)
-    test_ds = TranslationDataset(test_pairs)
+    Build PyTorch DataLoaders for train/val/test splits.
 
+    Args:
+        train_pairs (List[Tuple[str,str]]): (source, target) for training.
+        val_pairs   (List[Tuple[str,str]]): for validation.
+        test_pairs  (List[Tuple[str,str]]): for testing.
+        tokenizer   (PreTrainedTokenizer): e.g. T5Tokenizer.
+        max_length  (int): max sequence length for both source & target.
+        batch_size  (int): batch size.
+        shuffle     (bool): whether to shuffle the train split.
+
+    Returns:
+        train_loader, val_loader, test_loader: three DataLoader objects,
+        each yielding dicts with keys "input_ids", "attention_mask", "labels".
+    """
+    # wrap each split in our on‑the‑fly tokenizing Dataset
+    train_ds = TranslationDataset(train_pairs, tokenizer, max_length)
+    val_ds = TranslationDataset(val_pairs, tokenizer, max_length)
+    test_ds = TranslationDataset(test_pairs, tokenizer, max_length)
+
+    # default collate will batch the fixed-size tensors
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=shuffle)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)

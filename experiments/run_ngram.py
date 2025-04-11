@@ -43,8 +43,7 @@ def main():
     # Generate sample outputs on test data
     print("\nSample Translations:")
     for source, reference in test_data[:5]:
-        a = ngram_model.translate(source)
-        translation = re.sub(r"[']", "", a)
+        translation = ngram_model.translate(source)
         print("Input:      ", source)
         print("Reference:  ", reference)
         print("Translation:", translation)

@@ -1,0 +1,6 @@
+timestamp,model,n,train_size,bleu,chrf,sample_input,sample_ref,sample_out
+2025-04-11 04:24:43,ngram,5,800,0.0193,20.4047,"the man is,notwithstanding,sufficient.","the guy is, for real, enough.",the dude is and hold and right the
+2025-04-11 04:24:43,ngram,5,800,0.0193,20.4047,"in her forehead;armed and reverted,making war against her hair.","right on her forehead, all geared up, battling her hair.",in her at and you and shake and flip gonna hermia her being the
+2025-04-11 04:24:43,ngram,5,800,0.0193,20.4047,"if you have any music that may not be heard,tot again.","if you got any tunes that havent been heard, toot em out again.",if you got brave annoying that can the be got and out that the
+2025-04-11 04:24:43,ngram,5,800,0.0193,20.4047,"harry the fourth,or fifth?","harry the fourth, or fifth?",wanna the swords and or streets here
+2025-04-11 04:24:43,ngram,5,800,0.0193,20.4047,"mine honest friend,i prithee but repair to me next morning.","my honest friend, roll up to me by tomorrow morning.",off up friend and i wrap but warlike to me willow morning the

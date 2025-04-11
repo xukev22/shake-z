@@ -1,5 +1,7 @@
 # Shakespeare
+From: [Project Gutenberg](https://www.gutenberg.org/ebooks/100)
 
+## Processing:
 ### Removed:
 - Headers/Footers
 - TOC/Character lists

@@ -17,6 +17,8 @@ class NgramModel:
         self.ngram_counts = defaultdict(Counter)
         # Count of each (n-1)-word context overall.
         self.context_counts = defaultdict(int)
+        # Unigram counts for back-off and smoothing.
+        self.unigram_counts = Counter()
         # Vocabulary for the target sentences.
         self.vocab = set()
         # A simple mapping from source words to target words for direct substitution.
@@ -54,7 +56,12 @@ class NgramModel:
             # Train the N-gram model on the target sentence.
             # Add start and end tokens to help with context.
             tokens = ["<s>"] * (self.n - 1) + target_tokens + ["</s>"]
-            self.vocab.update(tokens)
+            for w in tokens:
+                if w not in ("<s>", "</s>"):
+                    self.unigram_counts[w] += 1
+                    self.vocab.add(w)
+
+            # Train N-gram counts
             for i in range(len(tokens) - self.n + 1):
                 context = tuple(tokens[i : i + self.n - 1])
                 word = tokens[i + self.n - 1]
@@ -63,13 +70,24 @@ class NgramModel:
 
         # For each source word, choose the target word with the highest count.
         self.mapping = {}
-        for s, t_counts in mapping_counts.items():
+        for source, t_counts in mapping_counts.items():
             # remove punctuation candidates
             for p in list(t_counts):
                 if all(ch in string.punctuation for ch in p):
                     del t_counts[p]
             if t_counts:
-                self.mapping[s] = max(t_counts, key=t_counts.get)
+                self.mapping[source] = max(t_counts, key=t_counts.get)
+
+    def _smoothed_prob(self, word, context):
+        """
+        Compute Laplace-smoothed probability P(word | context).
+
+        (count(context→word) + 1) / (count(context) + |V|)
+        """
+        V = len(self.vocab)
+        count_w = self.ngram_counts[context][word]
+        total = self.context_counts[context]
+        return (count_w + 1) / (total + V)
 
     def generate_word(self, context):
         """
@@ -81,19 +99,28 @@ class NgramModel:
         Returns:
             str: The next word sampled from the model.
         """
-        if context in self.ngram_counts:
-            choices, counts = zip(*self.ngram_counts[context].items())
-            total = sum(counts)
-            probabilities = [c / total for c in counts]
-            return random.choices(choices, probabilities)[0]
-        # BACKOFF: sample from global unigram (excluding start/end)
-        all_words = [
-            w
-            for w in self.vocab
-            if w not in ("<s>", "</s>")
-            and not all(ch in string.punctuation for ch in w)
-        ]
-        return random.choice(all_words)
+        # 1) Full n‑gram
+        if context in self.context_counts and self.context_counts[context] > 0:
+            choices, probs = zip(
+                *[(w, self._smoothed_prob(w, context)) for w in self.vocab]
+            )
+            return random.choices(choices, probs)[0]
+
+        # 2) Back-off to (n−1)-gram
+        if len(context) > 1:
+            back_ctx = context[1:]
+            if back_ctx in self.context_counts and self.context_counts[back_ctx] > 0:
+                choices, probs = zip(
+                    *[(w, self._smoothed_prob(w, back_ctx)) for w in self.vocab]
+                )
+                return random.choices(choices, probs)[0]
+
+        # 3) Unigram fallback (add‑one smoothing)
+        total_uni = sum(self.unigram_counts.values())
+        V = len(self.vocab)
+        words, counts = zip(*self.unigram_counts.items())
+        probs = [(c + 1) / (total_uni + V) for c in counts]
+        return random.choices(words, probs)[0]
 
     def translate(self, source_sentence):
         """
@@ -119,10 +146,9 @@ class NgramModel:
             else:
                 target_word = self.generate_word(tuple(context))
 
-            # --- collapse repeated punctuation ---
+            # avoid repeating punctuation
             if target_word.strip() in string.punctuation:
                 if translated_tokens and translated_tokens[-1] == target_word:
-                    # skip this token to avoid repetition
                     continue
 
             translated_tokens.append(target_word)

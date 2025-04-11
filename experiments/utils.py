@@ -2,7 +2,7 @@ import csv
 import time
 
 
-def save_results(csv_path, params, metrics, samples):
+def save_results(csv_path, params, metrics, samples, extras=None):
     """
     Append experiment results to a CSV, logging multiple metrics.
 
@@ -13,11 +13,13 @@ def save_results(csv_path, params, metrics, samples):
         metrics (dict): Mapping metric_name -> float (e.g. {'bleu':0.12, 'chrf':0.45}).
         samples (List[Tuple[str, str, str]]): (input, reference, prediction) triplets.
     """
+    extras = extras or {}
     # Build header: timestamp, model, <other params...>, <metric names...>, sample_input/ref/out
     fieldnames = (
         ["timestamp", "model"]
         + [k for k in params.keys() if k != "model"]
         + list(metrics.keys())
+        + list(extras.keys())
         + ["sample_input", "sample_ref", "sample_out"]
     )
 
@@ -44,5 +46,7 @@ def save_results(csv_path, params, metrics, samples):
             row += [v for k, v in params.items() if k != "model"]
             # metrics in the order of metrics.keys()
             row += [f"{metrics[m]:.4f}" for m in metrics]
+            # extras in the order of extras.keys()
+            row += [extras[k] for k in extras]
             row += [inp, ref, out]
             writer.writerow(row)

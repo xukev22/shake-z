@@ -19,17 +19,14 @@ def load_slang_dataset(csv_path):
     return pairs
 
 
-def load_shakespeare_dialogue(csv_path, src_col="original", tgt_col="modern"):
+def load_parallel_dataset(csv_path):
     """
-    Load Shakespeare dialogue CSV.
-    Expects columns for original Shakespeare text and a modern English version.
+    Load parallel Shakespeare→GenZ dataset.
+    Expects columns: 'source', 'target'.
     """
     df = pd.read_csv(csv_path)
-    df = df.dropna(subset=[src_col, tgt_col])
-    pairs = list(
-        zip(df[src_col].astype(str).tolist(), df[tgt_col].astype(str).tolist())
-    )
-    return pairs
+    df = df.dropna(subset=["source", "target"])
+    return list(zip(df["source"].astype(str), df["target"].astype(str)))
 
 
 def split_data(pairs, test_size=0.1, val_size=0.1, random_state=42):
@@ -81,22 +78,16 @@ def create_dataloaders(train_pairs, val_pairs, test_pairs, batch_size=32, shuffl
 
 
 def load_data(config):
-    """
-    High-level loader that picks which raw dataset to use based on config.
-    Expects in config:
-      - raw_data_path: path to data/raw/
-      - dataset: one of ["slang", "shakespeare"]
-      - test_size, val_size (optional)
-    Returns: train_pairs, val_pairs, test_pairs
-    """
-    raw_path = config["raw_data_path"]
-    if config.get("dataset", "slang") == "slang":
-        csv_path = os.path.join(raw_path, "all_slangs.csv")
-        pairs = load_slang_dataset(csv_path)
+    path = config["data_path"]
+    dataset = config.get("dataset", "shakez")
+    if dataset == "shakez":
+        csv_path = os.path.join(path, "mappings/shakez.csv")
+        pairs = load_parallel_dataset(csv_path)
+    elif dataset == "sonnetz":
+        csv_path = os.path.join(path, "mappings/sonnetz.csv")
+        pairs = load_parallel_dataset(csv_path)
     else:
-        csv_path = os.path.join(raw_path, "shake_dialogue.csv")
-        pairs = load_shakespeare_dialogue(csv_path)
-
+        raise ValueError(f"Unknown dataset: {dataset}")
     test_size = config.get("test_size", 0.1)
     val_size = config.get("val_size", 0.1)
     return split_data(pairs, test_size=test_size, val_size=val_size)

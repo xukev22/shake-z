@@ -1,20 +1,21 @@
 CONFIG = {
     ### Data paths
     #
-    "data_path": "data/processed/shake_sonnets_genz.txt",  # Path to your preprocessed dataset
-    "raw_data_path": "data/raw/shake_sonnets.txt",  # Optional: path for raw data files
+    "data_path": "data/processed/",  # Path to your preprocessed dataset
+    "raw_data_path": "data/raw/",  # Optional: path for raw data files
+    "dataset": "shakez",
     #
     #
     ### Model hyperparameters for N-gram model
     #
-    "ngram_n": 3,  # n in n-gram (e.g., 3 for trigram)
+    "ngram_n": 5,  # n in n-gram (e.g., 3 for trigram)
     #
     #
     ### Training parameters common to neural models
     #
     "batch_size": 32,
-    "learning_rate": 0.001,
-    "num_epochs": 10,  # Number of training epochs
+    "learning_rate": 0.01,
+    "num_epochs": 3,  # Number of training epochs
     "warmup_steps": 100,  # Used for transformer scheduler
     # Sequence processing
     "max_seq_length": 50,  # Maximum sequence length for input/output

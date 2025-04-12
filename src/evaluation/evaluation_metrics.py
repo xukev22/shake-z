@@ -49,7 +49,7 @@ def chrf(model, dataset):
     return chrf.corpus_score(hyps, refs).score
 
 
-def evaluate(model, dataset):
+def evaluate(model, dataset, verbose=False):
     """
     Evaluate a model or translations by computing both BLEU and chrF scores.
 
@@ -60,6 +60,10 @@ def evaluate(model, dataset):
     # Call the existing bleu and chrf functions with the provided parameters
     bleu_score = bleu(model, dataset)
     chrf_score = chrf(model, dataset)
+    if verbose:
+        print("Model Evaluation:")
+        print(f"  BLEU:      {bleu_score:.2f}")
+        print(f"  chrF:      {chrf_score:.2f}")
 
     return bleu_score, chrf_score
 

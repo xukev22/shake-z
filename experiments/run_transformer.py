@@ -1,7 +1,7 @@
 import torch
 from src.data.data_utils import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
-from src.evaluation.evaluation_metrics import bleu, chrf
+from src.evaluation.evaluation_metrics import evaluate
 from src.utils.config import CONFIG
 from transformers import get_linear_schedule_with_warmup
 from utils import save_results
@@ -20,7 +20,7 @@ def main():
         val_pairs,
         test_pairs,
         tokenizer=tokenizer,
-        max_length=CONFIG["transformer_max_length"],
+        max_length=CONFIG["max_length"],
         batch_size=CONFIG["batch_size"],
     )
 
@@ -48,8 +48,7 @@ def main():
         samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
         # Evaluate on validation set
         model.eval()
-        bleu_score = bleu(model, val_pairs)
-        chrf_score = chrf(model, val_pairs)
+        bleu_score, chrf_score = evaluate(model, val_pairs)
         print(f"Epoch {epoch+1} - Validation BLEU Score: {bleu_score:.2f}")
         print(f"Epoch {epoch+1} - Validation chrF Score: {chrf_score:.2f}")
 
@@ -59,7 +58,7 @@ def main():
             "epoch": epoch + 1,
             "lr": CONFIG["learning_rate"],
             "batch_size": CONFIG["batch_size"],
-            "max_length": CONFIG["transformer_max_length"],
+            "max_length": CONFIG["max_length"],
         }
 
         save_results(

@@ -72,5 +72,5 @@ if __name__ == "__main__":
     smoothing_fn = SmoothingFunction().method1
 
     # Compute and print BLEU score with the smoothing function
-    score = compute_bleu(dummy_model, dummy_dataset, smoothing_function=smoothing_fn)
+    score = bleu(dummy_model, dummy_dataset, smoothing_function=smoothing_fn)
     print("BLEU Score with smoothing:", score)

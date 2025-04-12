@@ -1,3 +1,4 @@
+import os
 import torch
 from src.data.data_utils import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
@@ -9,7 +10,10 @@ from utils import save_results
 
 def main():
 
-    # Initialize the Transformer model (fine-tuning a pre-trained model)
+    # Load data
+    train_pairs, val_pairs, test_pairs = load_data(CONFIG)
+
+    # Initialize Model + Tokenizer
     model = TransformerModel(CONFIG)
     tokenizer = model.tokenizer
 
@@ -20,7 +24,7 @@ def main():
         # Encode the inputs
         enc = tokenizer(
             sources,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             max_length=CONFIG["max_length"],
             return_tensors="pt",
@@ -28,7 +32,7 @@ def main():
         # Encode the targets
         dec = tokenizer(
             targets,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             max_length=CONFIG["max_length"],
             return_tensors="pt",
@@ -43,8 +47,7 @@ def main():
             "labels": labels,
         }
 
-    # Load dataset and create DataLoader objects
-    train_pairs, val_pairs, test_pairs = load_data(CONFIG)
+    # Build DataLoaders
     train_loader, val_loader, test_loader = create_dataloaders(
         train_pairs,
         val_pairs,
@@ -53,6 +56,7 @@ def main():
         collate_fn=collate_fn,
     )
 
+    # Optimizer + Scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=CONFIG["learning_rate"])
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
@@ -60,44 +64,52 @@ def main():
         num_training_steps=len(train_loader) * CONFIG["num_epochs"],
     )
 
+    # Prepare results directory & CSV
+    results_dir = CONFIG["results_path"]
+    os.makedirs(results_dir, exist_ok=True)
+    csv_path = os.path.join(results_dir, "transformer.csv")
+
     # Training loop
-    for epoch in range(CONFIG["num_epochs"]):
+    for epoch in range(1, CONFIG["num_epochs"] + 1):
         model.train()
-        total_loss = 0
+        total_loss = 0.0
         for batch in train_loader:
             optimizer.zero_grad()
-            loss = model(batch)  # Assume the model returns a loss
+            loss = model(batch)
             loss.backward()
             optimizer.step()
             scheduler.step()
             total_loss += loss.item()
         avg_loss = total_loss / len(train_loader)
-        print(f"Epoch {epoch+1}/{CONFIG['num_epochs']} - Training Loss: {avg_loss:.4f}")
 
-        samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
         # Evaluate on validation set
-        model.eval()
-        bleu_score, chrf_score = evaluate(model, val_pairs)
-        print(f"Epoch {epoch+1} - Validation BLEU Score: {bleu_score:.2f}")
-        print(f"Epoch {epoch+1} - Validation chrF Score: {chrf_score:.2f}")
+        val_bleu, val_chrf = evaluate(model, val_pairs)
 
+        print(
+            f"Epoch {epoch}/{CONFIG['num_epochs']}  "
+            f"Train Loss={avg_loss:.4f}  "
+            f"BLEU={val_bleu:.2f}  chrF={val_chrf:.2f}"
+        )
+
+        # Log to CSV
+        samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
         params = {
             "model": "transformer",
             "pretrained": CONFIG["pretrained_model_name"],
-            "epoch": epoch + 1,
+            "epoch": epoch,
             "lr": CONFIG["learning_rate"],
             "batch_size": CONFIG["batch_size"],
             "max_length": CONFIG["max_length"],
         }
+        metrics = {"bleu": val_bleu, "chrf": val_chrf}
+        extras = {"train_loss": f"{avg_loss:.4f}"}
 
         save_results(
-            "results/transformer.csv",
+            csv_path=csv_path,
             params=params,
-            metrics={"bleu": bleu_score, "chrf": chrf_score},
+            metrics=metrics,
             samples=samples,
-            extras={
-                "train_loss": avg_loss,
-            },
+            extras=extras,
         )
 
     # Generate sample outputs on test data
@@ -109,6 +121,15 @@ def main():
         print("Reference:  ", reference)
         print("Translation:", translation)
         print("-" * 50)
+
+    # Save trained model
+    models_dir = os.path.join(results_dir, "models")
+    os.makedirs(models_dir, exist_ok=True)
+    model_path = os.path.join(
+        models_dir, f"{CONFIG["pretrained_model_name"]}_{CONFIG["num_epochs"]}.pt"
+    )
+    torch.save(model, model_path)
+    print(f"Saved final {CONFIG["pretrained_model_name"]} model to {model_path}")
 
 
 if __name__ == "__main__":

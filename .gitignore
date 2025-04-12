@@ -30,8 +30,8 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Checkpoints and model outputs (if not intended for versioning)
-checkpoints/
+# Models
+results/models
 
 # Temporary files
 *.tmp

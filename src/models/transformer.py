@@ -54,7 +54,7 @@ class TransformerModel(nn.Module):
             input_text,
             return_tensors="pt",
             truncation=True,
-            max_length=self.config.get("transformer_max_length", 50),
+            max_length=self.config.get("max_length"),
         )
 
         # Generate translation using beam search for better quality
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # Define a basic config for testing purposes
     config = {
         "pretrained_model_name": "t5-small",
-        "transformer_max_length": 50,
+        "max_length": 50,
     }
     model = TransformerModel(config)
     sample_input = "Translate: How are you doing today?"

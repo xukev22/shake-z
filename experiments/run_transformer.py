@@ -6,6 +6,7 @@ from src.evaluation.evaluation_metrics import evaluate
 from src.utils.config import CONFIG
 from transformers import get_linear_schedule_with_warmup
 from utils import save_results
+from tqdm.auto import tqdm
 
 
 def main():
@@ -73,22 +74,23 @@ def main():
     for epoch in range(1, CONFIG["num_epochs"] + 1):
         model.train()
         total_loss = 0.0
-        for batch in train_loader:
+        for batch in tqdm(
+            train_loader, desc=f"Epoch {epoch}/{CONFIG["num_epochs"]}", unit="batch"
+        ):
             optimizer.zero_grad()
             loss = model(batch)
             loss.backward()
             optimizer.step()
             scheduler.step()
             total_loss += loss.item()
+            tqdm.write(f"  batch loss: {loss.item():.4f}", end="\r")
         avg_loss = total_loss / len(train_loader)
 
         # Evaluate on validation set
         val_bleu, val_chrf = evaluate(model, val_pairs)
 
         print(
-            f"Epoch {epoch}/{CONFIG['num_epochs']}  "
-            f"Train Loss={avg_loss:.4f}  "
-            f"BLEU={val_bleu:.2f}  chrF={val_chrf:.2f}"
+            f"\tTrain Loss={avg_loss:.4f}  " f"BLEU={val_bleu:.2f}  chrF={val_chrf:.2f}"
         )
 
         # Log to CSV

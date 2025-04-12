@@ -1,12 +1,12 @@
 import nltk
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
+from nltk.translate.bleu_score import corpus_bleu
 from sacrebleu.metrics import CHRF
 
 # Uncomment the following line if you haven't already downloaded the required tokenizer data
 # nltk.download('punkt')
 
 
-def bleu(model, dataset, smoothing_function=None):
+def bleu(model, dataset):
     """
     Compute the corpus BLEU score for a given model on a dataset.
 
@@ -14,7 +14,6 @@ def bleu(model, dataset, smoothing_function=None):
         model: A model with a translate() method that takes a source sentence as input
                and returns a generated translation.
         dataset: A list of tuples in the form (source_sentence, reference_translation).
-        smoothing_function: (Optional) A smoothing function from nltk.translate.bleu_score.SmoothingFunction.
 
     Returns:
         bleu_score: A float representing the corpus BLEU score.
@@ -33,9 +32,7 @@ def bleu(model, dataset, smoothing_function=None):
         hypotheses.append(hyp_tokens)
         references.append([ref_tokens])
 
-    bleu_score = corpus_bleu(
-        references, hypotheses, smoothing_function=smoothing_function
-    )
+    bleu_score = corpus_bleu(references, hypotheses)
     return bleu_score
 
 
@@ -50,6 +47,21 @@ def chrf(model, dataset):
         hyps.append(model.translate(src))
         refs.append([ref])
     return chrf.corpus_score(hyps, refs).score
+
+
+def evaluate(model, dataset):
+    """
+    Evaluate a model or translations by computing both BLEU and chrF scores.
+
+    This function is a convenient wrapper that calls the existing `bleu` and `chrf`
+    functions, passing along any additional keyword arguments.
+    """
+
+    # Call the existing bleu and chrf functions with the provided parameters
+    bleu_score = bleu(model, dataset)
+    chrf_score = chrf(model, dataset)
+
+    return bleu_score, chrf_score
 
 
 if __name__ == "__main__":
@@ -68,9 +80,6 @@ if __name__ == "__main__":
         ("Another example sentence.", "Another example sentence."),
     ]
 
-    # Using smoothing function from NLTK's SmoothingFunction (e.g., method1)
-    smoothing_fn = SmoothingFunction().method1
-
     # Compute and print BLEU score with the smoothing function
-    score = bleu(dummy_model, dummy_dataset, smoothing_function=smoothing_fn)
-    print("BLEU Score with smoothing:", score)
+    score = evaluate(dummy_model, dummy_dataset)
+    print("BLEU/chrF scores:", score)

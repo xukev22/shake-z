@@ -13,15 +13,44 @@ def main():
     model = TransformerModel(CONFIG)
     tokenizer = model.tokenizer
 
+    def collate_fn(batch):
+        sources = [item["source"] for item in batch]
+        targets = [item["target"] for item in batch]
+
+        # Encode the inputs
+        enc = tokenizer(
+            sources,
+            padding="longest",
+            truncation=True,
+            max_length=CONFIG["max_length"],
+            return_tensors="pt",
+        )
+        # Encode the targets
+        dec = tokenizer(
+            targets,
+            padding="longest",
+            truncation=True,
+            max_length=CONFIG["max_length"],
+            return_tensors="pt",
+        )
+        # Prepare labels, masking out pad tokens
+        labels = dec.input_ids.clone()
+        labels[labels == tokenizer.pad_token_id] = -100
+
+        return {
+            "input_ids": enc.input_ids,
+            "attention_mask": enc.attention_mask,
+            "labels": labels,
+        }
+
     # Load dataset and create DataLoader objects
     train_pairs, val_pairs, test_pairs = load_data(CONFIG)
     train_loader, val_loader, test_loader = create_dataloaders(
         train_pairs,
         val_pairs,
         test_pairs,
-        tokenizer=tokenizer,
-        max_length=CONFIG["max_length"],
         batch_size=CONFIG["batch_size"],
+        collate_fn=collate_fn,
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=CONFIG["learning_rate"])

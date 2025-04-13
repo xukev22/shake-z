@@ -3,13 +3,17 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm.auto import tqdm
-from transformers import AutoTokenizer
 from src.data.data_utils import load_data, create_dataloaders
 from src.models.lstm import LSTMModel
 from src.evaluation.evaluation_metrics import evaluate
 from utils import save_results
 from src.utils.config import CONFIG
-from src.utils.utils import tokenize_line, create_embedder
+from src.utils.utils import (
+    tokenize_line,
+    train_word2vec,
+    create_embedder,
+    save_word2vec,
+)
 
 
 def main():
@@ -20,9 +24,20 @@ def main():
     src_sentences = [tokenize_line(src) for src, _ in train_pairs]
     tgt_sentences = [tokenize_line(tgt) for _, tgt in train_pairs]
 
+    EMBED_SIZE = CONFIG["embed_size"]
+    src_w2v = train_word2vec(src_sentences, EMBED_SIZE)
+    tgt_w2v = train_word2vec(tgt_sentences, EMBED_SIZE)
+
+    out_dir = CONFIG["out_path"]
+    os.makedirs(out_dir, exist_ok=True)
+    src_path = os.path.join(out_dir, f"src_embedding_{EMBED_SIZE}.model")
+    save_word2vec(src_w2v, src_path)
+    tgt_path = os.path.join(out_dir, f"tgt_embedding_{EMBED_SIZE}.model")
+    save_word2vec(tgt_w2v, tgt_path)
+
     # 3) Create embedding layers and attach vocabulary info.
-    src_embedder = create_embedder(src_sentences, CONFIG["embed_size"])
-    tgt_embedder = create_embedder(tgt_sentences, CONFIG["embed_size"])
+    src_embedder = create_embedder(src_w2v)
+    tgt_embedder = create_embedder(tgt_w2v)
 
     # 4) Initialize model, optimizer, loss.
     model = LSTMModel(CONFIG, src_embedder, tgt_embedder)
@@ -63,7 +78,7 @@ def main():
     )
 
     # 6) Prepare results paths
-    results_dir = CONFIG["results_path"]
+    results_dir = CONFIG["out_path"]
     os.makedirs(results_dir, exist_ok=True)
     csv_path = os.path.join(results_dir, "lstm.csv")
 

@@ -3,7 +3,7 @@ CONFIG = {
     #
     "data_path": "data/processed/",  # Path to your preprocessed dataset
     "raw_data_path": "data/raw/",  # Optional: path for raw data files
-    "dataset": "sonnetz",
+    "dataset": "shakez",
     #
     #
     ### Model hyperparameters for N-gram model

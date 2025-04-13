@@ -21,7 +21,7 @@ def load_slang_dataset(csv_path):
 
 def load_parallel_dataset(csv_path):
     """
-    Load parallel Shakespeare→GenZ dataset.
+    Load parallel Shakespeare->GenZ dataset.
     Expects columns: 'source', 'target'.
     """
     df = pd.read_csv(csv_path)

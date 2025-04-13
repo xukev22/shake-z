@@ -128,9 +128,10 @@ def main():
     models_dir = os.path.join(results_dir, "models")
     os.makedirs(models_dir, exist_ok=True)
     model_path = os.path.join(
-        models_dir, f"{CONFIG["pretrained_model_name"]}_{CONFIG["num_epochs"]}.pt"
+        models_dir,
+        f"{CONFIG["pretrained_model_name"]}_{CONFIG["num_epochs"]}e_{CONFIG["learning_rate"]}lr.pt",
     )
-    torch.save(model, model_path)
+    torch.save(model.state_dict(), model_path)
     print(f"Saved final {CONFIG["pretrained_model_name"]} model to {model_path}")
 
 

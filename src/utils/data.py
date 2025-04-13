@@ -47,27 +47,23 @@ class TranslationDataset(Dataset):
 
 
 def create_dataloaders(
-    train_pairs, val_pairs, test_pairs, batch_size=32, shuffle=True, collate_fn=None
+    train_pairs, test_pairs, batch_size=32, shuffle=True, collate_fn=None
 ):
     """
     Wrap train/val/test pairs in DataLoaders.
     Returns: train_loader, val_loader, test_loader
     """
     train_ds = TranslationDataset(train_pairs)
-    val_ds = TranslationDataset(val_pairs)
     test_ds = TranslationDataset(test_pairs)
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn
     )
-    val_loader = DataLoader(
-        val_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
-    )
     test_loader = DataLoader(
         test_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
     )
 
-    return train_loader, val_loader, test_loader
+    return train_loader, test_loader
 
 
 def load_data(config):
@@ -83,8 +79,8 @@ def load_data(config):
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
-    test_size = config.get("test_size", 0.1)
+    test_size = config.get("test_size", 0.2)
     train_data, test_data = train_test_split(
-        pairs, test_size=test_size, random_state=17
+        pairs, test_size=test_size, random_state=42
     )
     return train_data, test_data

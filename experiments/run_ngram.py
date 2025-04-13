@@ -1,10 +1,10 @@
 import os
 import pickle
-from utils.data import load_data
+from src.utils.data import load_data
 from src.models.ngram import NgramModel
-from utils.evaluation import evaluate
+from src.utils.evaluation import evaluate
 from src.utils.config import CONFIG
-from .utils import save_results
+from utils import save_results
 
 
 def main():
@@ -17,35 +17,36 @@ def main():
     ngram_model.train(train_data)
 
     # metrics
-    bleu_score = bleu(ngram_model, test_data)
-    chrf_score = chrf(ngram_model, test_data)
+    val_bleu, val_chrf = evaluate(ngram_model, test_data)
+    print(f"n‑gram (n={n})  BLEU={val_bleu:.2f}  chrF={val_chrf:.2f}")
 
-    print("Test set scores:")
-    print(f"BLEU: {bleu_score:.2f}")
-    print(f"chrF: {chrf_score:.2f}")
+    results_dir = CONFIG["out_path"]
+    os.makedirs(results_dir, exist_ok=True)
+    csv_path = os.path.join(results_dir, "ngram.csv")
 
+    # 5) Log validation results
+    samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
     params = {
         "model": "ngram",
         "n": n,
-        "train_size": len(train_data),
     }
-
-    samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
+    metrics = {"bleu": val_bleu, "chrf": val_chrf}
+    extras = {}
 
     save_results(
-        "results/ngram.csv",
-        params,
-        metrics={"bleu": bleu_score, "chrf": chrf_score},
+        csv_path=csv_path,
+        params=params,
+        metrics=metrics,
         samples=samples,
+        extras=extras,
     )
 
-    # generate sample outputs on test data
-    print("\nSample Translations:")
-    for source, reference in test_data[:5]:
-        translation = ngram_model.translate(source)
-        print("Input:      ", source)
-        print("Reference:  ", reference)
-        print("Translation:", translation)
+    # 6) Sample translations on test set
+    print("\nSample Translations (Test):")
+    for src, ref in test_data[:5]:
+        print("Input:      ", src)
+        print("Reference:  ", ref)
+        print("Translation:", ngram_model.translate(src))
         print("-" * 50)
 
     # 7) Save final model to disk

@@ -29,21 +29,6 @@ def load_parallel_dataset(csv_path):
     return list(zip(df["source"].astype(str), df["target"].astype(str)))
 
 
-def split_data(pairs, test_size=0.1, val_size=0.1, random_state=42):
-    """
-    Split a list of (source, target) pairs into train, val, and test sets.
-    """
-    train_val, test = train_test_split(
-        pairs, test_size=test_size, random_state=random_state
-    )
-    # Compute val size relative to the remaining data
-    val_relative = val_size / (1 - test_size)
-    train, val = train_test_split(
-        train_val, test_size=val_relative, random_state=random_state
-    )
-    return train, val, test
-
-
 class TranslationDataset(Dataset):
     """
     PyTorch Dataset that tokenizes on the fly.
@@ -137,6 +122,7 @@ def create_dataloaders(
 
 def load_data(config):
     path = config["data_path"]
+    # default to shakez
     dataset = config.get("dataset", "shakez")
     if dataset == "shakez":
         csv_path = os.path.join(path, "mappings/shakez.csv")
@@ -146,6 +132,9 @@ def load_data(config):
         pairs = load_parallel_dataset(csv_path)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
+
     test_size = config.get("test_size", 0.1)
-    val_size = config.get("val_size", 0.1)
-    return split_data(pairs, test_size=test_size, val_size=val_size)
+    train_data, test_data = train_test_split(
+        pairs, test_size=test_size, random_state=42
+    )
+    return train_data, test_data

@@ -4,12 +4,12 @@ from src.models.ngram import NgramModel
 from src.evaluation.evaluation_metrics import bleu, chrf
 from src.utils.config import CONFIG
 from nltk.translate.bleu_score import SmoothingFunction
-from utils import save_results
+from .utils import save_results
 
 
 def main():
     # Load training, validation, and test data from preprocessed files
-    train_data, val_data, test_data = load_data(CONFIG)
+    train_data, test_data = load_data(CONFIG)
 
     # Training model
     n = CONFIG["ngram_n"]
@@ -17,11 +17,11 @@ def main():
     ngram_model.train(train_data)
 
     smoothing_fn = SmoothingFunction().method1
-    samples = [(src, ref, ngram_model.translate(src)) for src, ref in val_data[:5]]
+    samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
 
-    # --- Validation metrics ---
-    bleu_score = bleu(ngram_model, val_data, smoothing_function=smoothing_fn)
-    chrf_score = chrf(ngram_model, val_data)
+    # --- Metrics evaluation on test set ---
+    bleu_score = bleu(ngram_model, test_data, smoothing_function=smoothing_fn)
+    chrf_score = chrf(ngram_model, test_data)
 
     print("Validation set scores:")
     print(f"  BLEU:      {bleu_score:.2f}")

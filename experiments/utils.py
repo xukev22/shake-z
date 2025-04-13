@@ -1,3 +1,5 @@
+import torch
+import os
 import csv
 import time
 
@@ -50,3 +52,47 @@ def save_results(csv_path, params, metrics, samples, extras=None):
             row += [extras[k] for k in extras]
             row += [inp, ref, out]
             writer.writerow(row)
+
+
+def save_model(
+    model,
+    save_dir,
+    model_name,
+    optimizer: torch.optim.Optimizer = None,
+    epoch: int = None,
+    extra: dict = None,
+):
+    """
+    Save a PyTorch model's state_dict (and optionally optimizer) to disk.
+
+    Args:
+        model:        nn.Module to save.
+        save_dir:     directory where the .pt file will be written.
+        model_name:   base name for the file (e.g. "lstm", "transformer").
+        optimizer:    (optional) optimizer whose state_dict to save.
+        epoch:        (optional) epoch number, appended to filename.
+        extra:        (optional) dict of any extra scalars to include.
+    Returns:
+        filepath (str) of the saved checkpoint.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    # build filename
+    name = model_name
+    if epoch is not None:
+        name += f"_epoch{epoch}"
+    filename = name + ".pt"
+    path = os.path.join(save_dir, filename)
+
+    # gather state
+    state = {"model_state_dict": model.state_dict()}
+    if optimizer is not None:
+        state["optimizer_state_dict"] = optimizer.state_dict()
+    if epoch is not None:
+        state["epoch"] = epoch
+    if extra:
+        state.update(extra)
+
+    # save
+    torch.save(state, path)
+    return path

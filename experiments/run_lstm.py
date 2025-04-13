@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm.auto import tqdm
-from utils.data import load_data, create_dataloaders
+from src.utils.data import load_data, create_dataloaders
 from src.models.lstm import LSTMModel
-from utils.evaluation import evaluate
+from src.utils.evaluation import evaluate
 from utils import save_results
 from src.utils.config import CONFIG
 from src.utils.utils import (
@@ -18,7 +18,7 @@ from src.utils.utils import (
 
 def main():
     # 1) Load train/val/test splits
-    train_pairs, val_pairs, test_pairs = load_data(CONFIG)
+    train_pairs, test_pairs = load_data(CONFIG)
 
     # 2) Vocabularies
     src_sentences = [tokenize_line(src) for src, _ in train_pairs]
@@ -68,9 +68,8 @@ def main():
         return {"src": src_tensors, "trg": tgt_tensors}
 
     # 4) DataLoaders
-    train_loader, val_loader, test_loader = create_dataloaders(
+    train_loader, test_loader = create_dataloaders(
         train_pairs,
-        val_pairs,
         test_pairs,
         batch_size=CONFIG["batch_size"],
         shuffle=True,
@@ -107,7 +106,7 @@ def main():
         avg_loss = total_loss / len(train_loader)
 
         # 8) Evaluate on validation set
-        val_bleu, val_chrf = evaluate(model, val_pairs)
+        val_bleu, val_chrf = evaluate(model, test_pairs)
 
         print(
             f"\nEpoch {epoch}/{CONFIG['num_epochs']}  "
@@ -116,7 +115,7 @@ def main():
         )
 
         # 9) Log to CSV
-        samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
+        samples = [(src, ref, model.translate(src)) for src, ref in test_pairs[:5]]
         params = {
             "model": "lstm",
             "epoch": epoch,

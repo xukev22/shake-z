@@ -7,7 +7,7 @@ from .utils import save_results
 
 
 def main():
-    # Load training test data from preprocessed files
+    # load training test data from preprocessed files
     train_data, test_data = load_data(CONFIG)
 
     # train model
@@ -15,21 +15,21 @@ def main():
     ngram_model = NgramModel(n)
     ngram_model.train(train_data)
 
-    samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
-
     # metrics
     bleu_score = bleu(ngram_model, test_data)
     chrf_score = chrf(ngram_model, test_data)
 
-    print("Validation set scores:")
-    print(f"  BLEU:      {bleu_score:.2f}")
-    print(f"  chrF:      {chrf_score:.2f}")
+    print("Test set scores:")
+    print(f"BLEU: {bleu_score:.2f}")
+    print(f"chrF: {chrf_score:.2f}")
 
     params = {
         "model": "ngram",
         "n": n,
         "train_size": len(train_data),
     }
+
+    samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
 
     save_results(
         "results/ngram.csv",

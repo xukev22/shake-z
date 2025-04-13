@@ -85,6 +85,6 @@ def load_data(config):
 
     test_size = config.get("test_size", 0.1)
     train_data, test_data = train_test_split(
-        pairs, test_size=test_size, random_state=42
+        pairs, test_size=test_size, random_state=17
     )
     return train_data, test_data

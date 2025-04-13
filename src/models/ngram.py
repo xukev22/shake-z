@@ -13,15 +13,15 @@ class NgramModel:
             n (int): The order of the n-gram model (e.g., 3 for trigram).
         """
         self.n = n
-        # Dictionary mapping (n-1)-word contexts to counts of next words.
+        # mapping (n-1)-word contexts to counts of next words
         self.ngram_counts = defaultdict(Counter)
-        # Count of each (n-1)-word context overall.
+        # count of each (n-1)-word context overall
         self.context_counts = defaultdict(int)
-        # Unigram counts for back-off and smoothing.
+        # Unigram counts for back-off and smoothing
         self.unigram_counts = Counter()
-        # Vocabulary for the target sentences.
+        # vocab for target sentences
         self.vocab = set()
-        # A simple mapping from source words to target words for direct substitution.
+        # source words -> target words for direct substitution
         self.mapping = {}
 
     def tokenize(self, text):
@@ -34,7 +34,11 @@ class NgramModel:
         Returns:
             List[str]: A list of tokens.
         """
-        # A simple regex-based tokenizer (can be replaced with a more robust one if needed).
+        # regex-based tokenizer (can be replaced with a more robust one if needed)
+
+        # the regex finds every word or punctuation mark in the text, returning them in order
+        # whitespace (spaces, tabs, newlines) skipped entirely
+        # i.e "Hello, world!" -> ["Hello", ",", "world", "!"]
         return re.findall(r"\w+|[^\w\s]", text, re.UNICODE)
 
     def train(self, data):
@@ -82,7 +86,7 @@ class NgramModel:
         """
         Compute Laplace-smoothed probability P(word | context).
 
-        (count(context→word) + 1) / (count(context) + |V|)
+        (count(context->word) + 1) / (count(context) + |V|)
         """
         V = len(self.vocab)
         count_w = self.ngram_counts[context][word]
@@ -99,14 +103,14 @@ class NgramModel:
         Returns:
             str: The next word sampled from the model.
         """
-        # 1) Full n‑gram
+        # full n‑gram
         if context in self.context_counts and self.context_counts[context] > 0:
             choices, probs = zip(
                 *[(w, self._smoothed_prob(w, context)) for w in self.vocab]
             )
             return random.choices(choices, probs)[0]
 
-        # 2) Back-off to (n−1)-gram
+        # back-off to (n−1)-gram
         if len(context) > 1:
             back_ctx = context[1:]
             if back_ctx in self.context_counts and self.context_counts[back_ctx] > 0:
@@ -115,7 +119,7 @@ class NgramModel:
                 )
                 return random.choices(choices, probs)[0]
 
-        # 3) Unigram fallback (add‑one smoothing)
+        # unigram fallback (add‑one smoothing)
         total_uni = sum(self.unigram_counts.values())
         V = len(self.vocab)
         words, counts = zip(*self.unigram_counts.items())
@@ -158,9 +162,9 @@ class NgramModel:
         return " ".join(final_tokens)
 
 
-# Quick test for the N-gram model (for development purposes)
+# quick test for the N-gram model (for development purposes)
 if __name__ == "__main__":
-    # Dummy dataset: list of (source, target) pairs.
+    # dummy dataset: list of (source, target) pairs
     dummy_data = [
         ("hello world", "yo world"),
         ("how are you", "how u doin"),

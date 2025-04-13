@@ -19,8 +19,8 @@ def main():
     smoothing_fn = SmoothingFunction().method1
     samples = [(src, ref, ngram_model.translate(src)) for src, ref in test_data[:5]]
 
-    # --- Metrics evaluation on test set ---
-    bleu_score = bleu(ngram_model, test_data, smoothing_function=smoothing_fn)
+    # --- metrics ---
+    bleu_score = bleu(ngram_model, test_data)
     chrf_score = chrf(ngram_model, test_data)
 
     print("Validation set scores:")

@@ -1,7 +1,7 @@
 import torch
 from src.data.data_utils import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
-from src.evaluation.evaluation_metrics import bleu, chrf
+from src.evaluation.evaluation_metrics import evaluate
 from src.utils.config import CONFIG
 from transformers import get_linear_schedule_with_warmup
 from utils import save_results
@@ -13,15 +13,44 @@ def main():
     model = TransformerModel(CONFIG)
     tokenizer = model.tokenizer
 
+    def collate_fn(batch):
+        sources = [item["source"] for item in batch]
+        targets = [item["target"] for item in batch]
+
+        # Encode the inputs
+        enc = tokenizer(
+            sources,
+            padding="longest",
+            truncation=True,
+            max_length=CONFIG["max_length"],
+            return_tensors="pt",
+        )
+        # Encode the targets
+        dec = tokenizer(
+            targets,
+            padding="longest",
+            truncation=True,
+            max_length=CONFIG["max_length"],
+            return_tensors="pt",
+        )
+        # Prepare labels, masking out pad tokens
+        labels = dec.input_ids.clone()
+        labels[labels == tokenizer.pad_token_id] = -100
+
+        return {
+            "input_ids": enc.input_ids,
+            "attention_mask": enc.attention_mask,
+            "labels": labels,
+        }
+
     # Load dataset and create DataLoader objects
     train_pairs, val_pairs, test_pairs = load_data(CONFIG)
     train_loader, val_loader, test_loader = create_dataloaders(
         train_pairs,
         val_pairs,
         test_pairs,
-        tokenizer=tokenizer,
-        max_length=CONFIG["transformer_max_length"],
         batch_size=CONFIG["batch_size"],
+        collate_fn=collate_fn,
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=CONFIG["learning_rate"])
@@ -48,8 +77,7 @@ def main():
         samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
         # Evaluate on validation set
         model.eval()
-        bleu_score = bleu(model, val_pairs)
-        chrf_score = chrf(model, val_pairs)
+        bleu_score, chrf_score = evaluate(model, val_pairs)
         print(f"Epoch {epoch+1} - Validation BLEU Score: {bleu_score:.2f}")
         print(f"Epoch {epoch+1} - Validation chrF Score: {chrf_score:.2f}")
 
@@ -59,7 +87,7 @@ def main():
             "epoch": epoch + 1,
             "lr": CONFIG["learning_rate"],
             "batch_size": CONFIG["batch_size"],
-            "max_length": CONFIG["transformer_max_length"],
+            "max_length": CONFIG["max_length"],
         }
 
         save_results(

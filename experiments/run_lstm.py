@@ -5,7 +5,7 @@ import torch.optim as optim
 from tqdm.auto import tqdm
 from utils.data import load_data, create_dataloaders
 from src.models.lstm import LSTMModel
-from src.evaluation.evaluation_metrics import evaluate
+from utils.evaluation import evaluate
 from utils import save_results
 from src.utils.config import CONFIG
 from src.utils.utils import (

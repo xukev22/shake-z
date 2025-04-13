@@ -2,7 +2,7 @@ import os
 import pickle
 from utils.data import load_data
 from src.models.ngram import NgramModel
-from src.evaluation.evaluation_metrics import bleu, chrf
+from utils.evaluation import evaluate
 from src.utils.config import CONFIG
 from .utils import save_results
 

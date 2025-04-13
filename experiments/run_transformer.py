@@ -2,7 +2,7 @@ import os
 import torch
 from utils.data import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
-from src.evaluation.evaluation_metrics import evaluate
+from utils.evaluation import evaluate
 from src.utils.config import CONFIG
 from transformers import get_linear_schedule_with_warmup
 from utils import save_results

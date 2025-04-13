@@ -1,8 +1,8 @@
 import os
 import torch
-from utils.data import load_data, create_dataloaders
+from src.utils.data import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
-from utils.evaluation import evaluate
+from src.utils.evaluation import evaluate
 from src.utils.config import CONFIG
 from transformers import get_linear_schedule_with_warmup
 from utils import save_results
@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 def main():
 
     # Load data
-    train_pairs, val_pairs, test_pairs = load_data(CONFIG)
+    train_pairs, test_pairs = load_data(CONFIG)
 
     # Initialize Model + Tokenizer
     model = TransformerModel(CONFIG)
@@ -49,9 +49,8 @@ def main():
         }
 
     # Build DataLoaders
-    train_loader, val_loader, test_loader = create_dataloaders(
+    train_loader, test_loader = create_dataloaders(
         train_pairs,
-        val_pairs,
         test_pairs,
         batch_size=CONFIG["batch_size"],
         collate_fn=collate_fn,
@@ -66,7 +65,7 @@ def main():
     )
 
     # Prepare results directory & CSV
-    results_dir = CONFIG["results_path"]
+    results_dir = CONFIG["out_path"]
     os.makedirs(results_dir, exist_ok=True)
     csv_path = os.path.join(results_dir, "transformer.csv")
 
@@ -75,7 +74,7 @@ def main():
         model.train()
         total_loss = 0.0
         for batch in tqdm(
-            train_loader, desc=f"Epoch {epoch}/{CONFIG["num_epochs"]}", unit="batch"
+            train_loader, desc=f"Epoch {epoch}/{CONFIG['num_epochs']}", unit="batch"
         ):
             optimizer.zero_grad()
             loss = model(batch)
@@ -87,14 +86,14 @@ def main():
         avg_loss = total_loss / len(train_loader)
 
         # Evaluate on validation set
-        val_bleu, val_chrf = evaluate(model, val_pairs)
+        val_bleu, val_chrf = evaluate(model, test_pairs)
 
         print(
             f"\tTrain Loss={avg_loss:.4f}  " f"BLEU={val_bleu:.2f}  chrF={val_chrf:.2f}"
         )
 
         # Log to CSV
-        samples = [(src, ref, model.translate(src)) for src, ref in val_pairs[:5]]
+        samples = [(src, ref, model.translate(src)) for src, ref in test_pairs[:5]]
         params = {
             "model": "transformer",
             "pretrained": CONFIG["pretrained_model_name"],
@@ -129,10 +128,10 @@ def main():
     os.makedirs(models_dir, exist_ok=True)
     model_path = os.path.join(
         models_dir,
-        f"{CONFIG["pretrained_model_name"]}_{CONFIG["num_epochs"]}e_{CONFIG["learning_rate"]}lr.pt",
+        f"{CONFIG['pretrained_model_name']}_{CONFIG['num_epochs']}e_{CONFIG['learning_rate']}lr.pt",
     )
     torch.save(model.state_dict(), model_path)
-    print(f"Saved final {CONFIG["pretrained_model_name"]} model to {model_path}")
+    print(f"Saved final {CONFIG['pretrained_model_name']} model to {model_path}")
 
 
 if __name__ == "__main__":

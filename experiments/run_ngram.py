@@ -1,4 +1,5 @@
-import re
+import os
+import pickle
 from src.data.data_utils import load_data
 from src.models.ngram import NgramModel
 from src.evaluation.evaluation_metrics import bleu, chrf
@@ -46,6 +47,14 @@ def main():
         print("Reference:  ", reference)
         print("Translation:", translation)
         print("-" * 50)
+
+    # 7) Save final model to disk
+    models_dir = os.path.join(results_dir, "models")
+    os.makedirs(models_dir, exist_ok=True)
+    model_path = os.path.join(models_dir, f"ngram_{n}.pt")
+    with open(model_path, "wb") as f:
+        pickle.dump(ngram_model, f)
+    print(f"Saved {n}‑gram model to {model_path}")
 
 
 if __name__ == "__main__":

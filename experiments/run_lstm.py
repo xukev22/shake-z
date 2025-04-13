@@ -9,46 +9,48 @@ from src.models.lstm import LSTMModel
 from src.evaluation.evaluation_metrics import evaluate
 from utils import save_results
 from src.utils.config import CONFIG
+from src.utils.utils import tokenize_line, create_embedder
 
 
 def main():
     # 1) Load train/val/test splits
     train_pairs, val_pairs, test_pairs = load_data(CONFIG)
 
-    # 2) Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(CONFIG["tokenizer"])
+    # 2) Vocabularies
+    src_sentences = [tokenize_line(src) for src, _ in train_pairs]
+    tgt_sentences = [tokenize_line(tgt) for _, tgt in train_pairs]
+
+    # 3) Create embedding layers and attach vocabulary info.
+    src_embedder = create_embedder(src_sentences, CONFIG["embed_size"])
+    tgt_embedder = create_embedder(tgt_sentences, CONFIG["embed_size"])
+
+    # 4) Initialize model, optimizer, loss.
+    model = LSTMModel(CONFIG, src_embedder, tgt_embedder)
+    optimizer = optim.Adam(model.parameters(), lr=CONFIG["learning_rate"])
+    criterion = nn.CrossEntropyLoss(ignore_index=tgt_embedder.token_to_index["<pad>"])
 
     # 3) Collate function to batch & tokenize
     def collate_fn(batch):
-        src_texts = [ex["source"] for ex in batch]
-        tgt_texts = [ex["target"] for ex in batch]
-        enc = tokenizer(
-            src_texts,
-            padding="max_length",
-            truncation=True,
-            max_length=CONFIG["max_length"],
-            return_tensors="pt",
-        )
-        dec = tokenizer(
-            tgt_texts,
-            padding="max_length",
-            truncation=True,
-            max_length=CONFIG["max_length"],
-            return_tensors="pt",
-        )
-        # Use the original token ids for the decoder input
-        decoder_input_ids = dec.input_ids.clone()
+        src_texts = [item["source"] for item in batch]
+        tgt_texts = [item["target"] for item in batch]
 
-        # Create labels for the loss, replacing pad tokens with -100
-        labels = dec.input_ids.clone()
-        labels[labels == tokenizer.pad_token_id] = -100
+        # Convert texts to tensors using our vocab mappings.
+        def to_tensor(text, token_to_index):
+            tokens = tokenize_line(text)
+            ids = [token_to_index.get(tok, token_to_index["<pad>"]) for tok in tokens]
+            if len(ids) < CONFIG["max_length"]:
+                ids += [token_to_index["<pad>"]] * (CONFIG["max_length"] - len(ids))
+            else:
+                ids = ids[: CONFIG["max_length"]]
+            return torch.tensor(ids, dtype=torch.long)
 
-        return {
-            "input_ids": enc.input_ids,
-            "attention_mask": enc.attention_mask,
-            "decoder_input_ids": decoder_input_ids,
-            "labels": labels,
-        }
+        src_tensors = torch.stack(
+            [to_tensor(s, src_embedder.token_to_index) for s in src_texts]
+        )
+        tgt_tensors = torch.stack(
+            [to_tensor(t, tgt_embedder.token_to_index) for t in tgt_texts]
+        )
+        return {"src": src_tensors, "trg": tgt_tensors}
 
     # 4) DataLoaders
     train_loader, val_loader, test_loader = create_dataloaders(
@@ -59,11 +61,6 @@ def main():
         shuffle=True,
         collate_fn=collate_fn,
     )
-
-    # 5) Model, optimizer, loss
-    model = LSTMModel(CONFIG, tokenizer)
-    optimizer = optim.Adam(model.parameters(), lr=CONFIG["learning_rate"])
-    criterion = nn.CrossEntropyLoss(ignore_index=-100)
 
     # 6) Prepare results paths
     results_dir = CONFIG["results_path"]
@@ -80,12 +77,13 @@ def main():
             desc=f"Epoch {epoch}/{CONFIG['num_epochs']}",
             unit="batch",
         ):
+            src_tensor = batch["src"]
+            tgt_tensor = batch["trg"]
             optimizer.zero_grad()
-            output = model(batch["input_ids"], batch["decoder_input_ids"][:, :-1])
-            loss = criterion(
-                output.reshape(-1, output.size(-1)),
-                batch["labels"][:, 1:].reshape(-1),
-            )
+            output = model(src_tensor, tgt_tensor)
+            output = output[:, 1:].reshape(-1, len(tgt_embedder.token_to_index))
+            target = tgt_tensor[:, 1:].reshape(-1)
+            loss = criterion(output, target)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -110,6 +108,9 @@ def main():
             "lr": CONFIG["learning_rate"],
             "batch_size": CONFIG["batch_size"],
             "max_length": CONFIG["max_length"],
+            "embed_size": CONFIG["embed_size"],
+            "hidden_size": CONFIG["hidden_size"],
+            "num_layers": CONFIG["num_layers"],
         }
         metrics = {"bleu": val_bleu, "chrf": val_chrf}
         extras = {"train_loss": f"{avg_loss:.4f}"}
@@ -131,10 +132,12 @@ def main():
         print("-" * 50)
 
     # 11) Save final trained model
-    final_dir = os.path.join(results_dir, "final_models")
+    final_dir = os.path.join(results_dir, "models")
     os.makedirs(final_dir, exist_ok=True)
-    model_path = os.path.join(final_dir, "lstm.pt")
-    torch.save(model, model_path)
+    model_path = os.path.join(
+        final_dir, f"lstm_{CONFIG['num_epochs']}e_{CONFIG['learning_rate']}lr.pt"
+    )
+    torch.save(model.state_dict(), model_path)
     print(f"Saved final LSTM model to {model_path}")
 
 

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm.auto import tqdm
-from src.data.data_utils import load_data, create_dataloaders
+from utils.data import load_data, create_dataloaders
 from src.models.lstm import LSTMModel
 from src.evaluation.evaluation_metrics import evaluate
 from utils import save_results

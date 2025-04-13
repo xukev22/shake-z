@@ -1,6 +1,6 @@
 import os
 import torch
-from src.data.data_utils import load_data, create_dataloaders
+from utils.data import load_data, create_dataloaders
 from src.models.transformer import TransformerModel
 from src.evaluation.evaluation_metrics import evaluate
 from src.utils.config import CONFIG

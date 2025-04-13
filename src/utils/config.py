@@ -1,37 +1,38 @@
 CONFIG = {
     ### Data paths
-    #
     "data_path": "data/processed/",  # Path to your preprocessed dataset
-    "raw_data_path": "data/raw/",  # Optional: path for raw data files
-    "dataset": "shakez",
+    "raw_data_path": "data/raw/",  # Path to raw data
+    "dataset": "shakez",  # "shakez", "sonnetz"
     #
+    ### N‑gram model hyperparameters
+    "ngram_n": 5,  # n in n-gram (e.g., 5 for 5‑gram)
+    "ngram_smoothing": True,  # Whether to apply Laplace smoothing
+    "laplace_alpha": 1.0,  # α for Laplace (add‑α) smoothing
+    "use_backoff": True,  # Whether to back off to unigram when unseen
     #
-    ### Model hyperparameters for N-gram model
-    #
-    "ngram_n": 5,  # n in n-gram (e.g., 3 for trigram)
-    #
-    #
-    ### Training parameters common to neural models
-    #
+    ### Neural model training parameters
     "batch_size": 32,
-    "learning_rate": 0.01,
-    "num_epochs": 3,  # Number of training epochs
-    "warmup_steps": 100,  # Used for transformer scheduler
-    # Sequence processing
-    "max_seq_length": 50,  # Maximum sequence length for input/output
-    # Additional configurations for model-specific parameters
-    "lstm_hidden_size": 256,  # Hidden state size for LSTM model
-    "lstm_num_layers": 2,  # Number of layers for LSTM model
-    "dropout": 0.5,  # Dropout rate for regularization
+    "learning_rate": 0.001,
+    "num_epochs": 3,
+    "warmup_steps": 100,  # for transformer scheduler
+    "max_length": 64,
+    "dropout": 0.1,
     #
+    ### LSTM model hyperparameters
+    "tokenizer": "bert-base-uncased",
+    "embed_size": 256,
+    "hidden_size": 512,
+    "num_layers": 2,
     #
-    ### Transformer specific parameters (if fine-tuning a pre-trained model)
+    ### Transformer fine‑tuning
+    "pretrained_model_name": "t5-small",  # or t5-large, etc.
     #
-    "pretrained_model_name": "t5-small",  # Name of the pre-trained model from Hugging Face
-    "transformer_max_length": 50,  # Max token length for transformer inputs/outputs
-    # Logging and checkpointing
-    "log_interval": 100,  # How often to log training progress (in batches)
-    "checkpoint_dir": "checkpoints/",  # Directory to save model checkpoints
+    ### Results
+    "results_path": "results/",  # where to dump experiment outputs
+    "save_metrics": ["bleu", "chrf"],  # always save these metrics in save_results()
+    #
+    ### Random seed
+    "seed": 42,
 }
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import random
+from transformers import AutoTokenizer
 
 
 class Encoder(nn.Module):
@@ -59,133 +60,173 @@ class Decoder(nn.Module):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, config, tokenizer):
         """
-        Wrapper model that ties the encoder and decoder together.
-
         Args:
-            encoder (nn.Module): The encoder model.
-            decoder (nn.Module): The decoder model.
+          config: dict with hyperparams (emb_dim, hid_dim, num_layers, dropout, device, max_length)
+          tokenizer: a HuggingFace tokenizer, from which we derive vocab_size and special token IDs
         """
         super().__init__()
-        self.encoder = encoder
-        self.decoder = decoder
+        self.max_length = config["max_length"]
+        self.tokenizer = tokenizer
 
-    def forward(self, src, trg, teacher_forcing_ratio=0.5):
+        # derive vocab & special IDs
+        vocab_size = tokenizer.vocab_size
+        self.pad_idx = tokenizer.pad_token_id
+        # some tokenizers don't define bos/eos, so fall back to cls/sep
+        self.bos_idx = tokenizer.bos_token_id or tokenizer.cls_token_id
+        self.eos_idx = tokenizer.eos_token_id or tokenizer.sep_token_id
+
+        # build encoder & decoder with the derived dims
+        self.encoder = Encoder(
+            input_dim=vocab_size,
+            emb_dim=config["embed_size"],
+            hid_dim=config["hidden_size"],
+            num_layers=config["num_layers"],
+            dropout=config["dropout"],
+        )
+        self.decoder = Decoder(
+            output_dim=vocab_size,
+            emb_dim=config["embed_size"],
+            hid_dim=config["hidden_size"],
+            num_layers=config["num_layers"],
+            dropout=config["dropout"],
+        )
+
+    def forward(self, src, trg):
         """
-        Forward pass through the sequence-to-sequence model using teacher forcing.
+        Forward pass without teacher forcing.
+        The decoder always uses its own predictions as inputs.
 
         Args:
-            src (Tensor): Source tensor of shape [batch_size, src_len].
-            trg (Tensor): Target tensor of shape [batch_size, trg_len].
-            teacher_forcing_ratio (float): Probability of using teacher forcing.
+            src: Tensor of shape [B, src_len]
+            trg: Tensor of shape [B, trg_len] (only used to determine sequence length)
 
         Returns:
-            outputs (Tensor): Predicted outputs of shape [batch_size, trg_len, output_dim].
+            outputs: Tensor of shape [B, trg_len, vocab_size]
         """
-        batch_size = src.shape[0]
-        trg_len = trg.shape[1]
-        trg_vocab_size = self.decoder.embedding.num_embeddings
+        B, trg_len = trg.size()
+        vocab_size = self.decoder.embedding.num_embeddings
+        outputs = torch.zeros(B, trg_len, vocab_size, device=src.device)
 
-        # Tensor to store decoder outputs
-        outputs = torch.zeros(batch_size, trg_len, trg_vocab_size)
-
-        # Encode the source sequence
         hidden, cell = self.encoder(src)
 
-        # First input to the decoder is the <sos> token (assumed to be at index 0)
+        # Start the decoding using the BOS token from the target sequence.
         input = trg[:, 0]
-
         for t in range(1, trg_len):
-            output, hidden, cell = self.decoder(input, hidden, cell)
-            outputs[:, t, :] = output
-
-            # Decide whether to use teacher forcing: feed the actual target as the next input, or use model's prediction.
-            teacher_force = random.random() < teacher_forcing_ratio
-            top1 = output.argmax(1)  # Get the highest scoring token from predictions
-
-            input = trg[:, t] if teacher_force else top1
-
+            pred, hidden, cell = self.decoder(input, hidden, cell)
+            outputs[:, t, :] = pred
+            # Always use model's own prediction.
+            input = pred.argmax(1)
         return outputs
 
-    def translate(self, src_sentence, src_field, trg_field, max_len=50):
+    def translate_batch(self, src_batch, max_len=50):
         """
-        Translate a single sentence from source to target using greedy decoding.
+        Greedy decode a batch of tokenized inputs.
 
         Args:
-            src_sentence (str): Input sentence (standard text).
-            src_field: Object with attributes: init_token, eos_token, and a vocab mapping (stoi/itos) for the source.
-            trg_field: Object with attributes: init_token, eos_token, and a vocab mapping (stoi/itos) for the target.
-            max_len (int): Maximum length for the generated sentence.
+            src_batch: Tensor of shape [B, src_len]
+            max_len (int): Maximum length of the generated sequence.
 
         Returns:
-            str: The translated sentence in target language style.
+            A list of decoded strings.
         """
         self.eval()
-        tokens = src_sentence.split()
-        tokens = [src_field.init_token] + tokens + [src_field.eos_token]
-        src_indices = [src_field.vocab.stoi[token] for token in tokens]
-        src_tensor = torch.LongTensor(src_indices).unsqueeze(0)
-
         with torch.no_grad():
-            hidden, cell = self.encoder(src_tensor)
+            hidden, cell = self.encoder(src_batch)
 
-        trg_indices = [trg_field.vocab.stoi[trg_field.init_token]]
-        for _ in range(max_len):
-            trg_tensor = torch.LongTensor([trg_indices[-1]])
+        B = src_batch.size(0)
+        outputs = torch.full(
+            (B, max_len), self.pad_idx, dtype=torch.long, device=src_batch.device
+        )
+        outputs[:, 0] = self.bos_idx  # Initialize with the BOS token.
+
+        for t in range(1, max_len):
+            input = outputs[:, t - 1]
             with torch.no_grad():
-                output, hidden, cell = self.decoder(trg_tensor, hidden, cell)
-            pred_token = output.argmax(1).item()
-            trg_indices.append(pred_token)
-            if pred_token == trg_field.vocab.stoi[trg_field.eos_token]:
-                break
+                pred, hidden, cell = self.decoder(input, hidden, cell)
+            outputs[:, t] = pred.argmax(1)
 
-        # Convert indices back to words and remove special tokens
-        trg_tokens = [trg_field.vocab.itos[i] for i in trg_indices]
-        return " ".join(trg_tokens[1:-1])
+        results = []
+        for seq in outputs.tolist():
+            tokens = []
+            for token in seq:
+                if token == self.eos_idx:
+                    break
+                tokens.append(token)
+            decoded = self.tokenizer.decode(tokens, skip_special_tokens=True)
+            results.append(decoded)
+        return results
+
+    def translate(self, src_text, max_len=50):
+        """
+        Translate a single text sequence.
+
+        Args:
+            src_text (str): Input text.
+            max_len (int): Maximum length of the generated sequence.
+
+        Returns:
+            A decoded string translation.
+        """
+        enc = self.tokenizer(
+            src_text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=max_len,
+        )
+        src_ids = enc.input_ids
+        translations = self.translate_batch(src_ids, max_len=max_len)
+        return translations[0]
 
 
-# test block
+# Test block to verify that the model works as expected.
 if __name__ == "__main__":
-    # Define dummy vocabulary and field objects for testing.
-    class DummyVocab:
-        def __init__(self):
-            # Simple mapping for demonstration
-            self.stoi = {
-                "<s>": 0,
-                "</s>": 1,
-                "hello": 2,
-                "world": 3,
-                "how": 4,
-                "are": 5,
-                "you": 6,
-            }
-            self.itos = {i: s for s, i in self.stoi.items()}
+    # Dummy configuration.
+    config = {
+        "max_length": 10,
+        "embed_size": 32,
+        "hidden_size": 64,
+        "num_layers": 1,
+        "dropout": 0.1,
+        "tokenizer": "bert-base-uncased",
+    }
 
-    class DummyField:
-        def __init__(self):
-            self.init_token = "<s>"
-            self.eos_token = "</s>"
-            self.vocab = DummyVocab()
+    # Load the BERT tokenizer.
+    tokenizer = AutoTokenizer.from_pretrained(config["tokenizer"])
 
-    src_field = DummyField()
-    trg_field = DummyField()
+    # Initialize the model.
+    model = LSTMModel(config, tokenizer)
 
-    # Hyperparameters for dummy model
-    INPUT_DIM = len(src_field.vocab.stoi)
-    OUTPUT_DIM = len(trg_field.vocab.stoi)
-    EMB_DIM = 16
-    HID_DIM = 32
-    NUM_LAYERS = 1
-    DROPOUT = 0.1
+    # Sample source and target texts.
+    src_text = "Hello world!"
+    tgt_text = "Bonjour le monde!"
 
-    # Instantiate encoder, decoder, and the seq2seq model
-    encoder = Encoder(INPUT_DIM, EMB_DIM, HID_DIM, NUM_LAYERS, DROPOUT)
-    decoder = Decoder(OUTPUT_DIM, EMB_DIM, HID_DIM, NUM_LAYERS, DROPOUT)
-    model = LSTMModel(encoder, decoder)
+    # Tokenize the texts.
+    enc = tokenizer(
+        src_text,
+        return_tensors="pt",
+        padding="max_length",
+        truncation=True,
+        max_length=config["max_length"],
+    )
+    dec = tokenizer(
+        tgt_text,
+        return_tensors="pt",
+        padding="max_length",
+        truncation=True,
+        max_length=config["max_length"],
+    )
 
-    # Test the translate() method with a dummy input
-    sample_input = "hello world"
-    print("Input:", sample_input)
-    translation = model.translate(sample_input, src_field, trg_field)
+    src_ids = enc.input_ids  # [1, max_length]
+    tgt_ids = dec.input_ids  # [1, max_length]
+
+    # Test the forward pass without teacher forcing.
+    outputs = model(src_ids, tgt_ids)
+    print("Forward output shape:", outputs.shape)
+    # Expected shape: [batch_size, trg_len, vocab_size]
+
+    # Test the translation method (greedy decoding).
+    translation = model.translate(src_text, max_len=config["max_length"])
     print("Translation:", translation)

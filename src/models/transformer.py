@@ -49,7 +49,7 @@ class TransformerModel(nn.Module):
         Returns:
             str: The generated Gen Z style sentence.
         """
-        # Tokenize the input text. Adjust truncation/max_length as needed.
+        # Tokenize the input text.
         input_ids = self.tokenizer.encode(
             input_text,
             return_tensors="pt",

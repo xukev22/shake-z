@@ -5,31 +5,30 @@ CONFIG = {
     "dataset": "shakez",  # "shakez", "sonnetz"
     #
     ### N‑gram model hyperparameters
-    "ngram_n": 4,  # n in n-gram (e.g., 5 for 5‑gram)
-    "ngram_smoothing": True,  # Whether to apply Laplace smoothing
-    "laplace_alpha": 1.0,  # α for Laplace (add‑α) smoothing
-    "use_backoff": True,  # Whether to back off to unigram when unseen
+    "ngram_n": 3,  # n in n-gram
+    "ngram_smoothing": True,  # Laplace smoothing
+    "laplace_alpha": 1.0,  # α for Laplace smoothing
+    "use_backoff": True,
     #
     ### Neural model training parameters
     "batch_size": 32,
-    "learning_rate": 1e-5,
-    "num_epochs": 3,
+    "learning_rate": 1e-4,
+    "num_epochs": 5,
     "max_length": 32,
     "dropout": 0.1,
     #
     ### LSTM model hyperparameters
-    "tokenizer": "bert-base-uncased",
     "embed_size": 256,
     "hidden_size": 512,
     "num_layers": 2,
     #
     ### Transformer fine‑tuning
     "pretrained_model_name": "t5-small",  # or t5-large, etc.
-    "warmup_steps": 100,  # for transformer scheduler
+    "warmup_steps": 100,
     #
     ### Results
     "out_path": "out/",  # where to dump experiment outputs
-    "save_metrics": ["bleu", "chrf"],  # always save these metrics in save_results()
+    "save_metrics": ["bleu", "chrf"],
     #
     ### Random seed
     "seed": 42,
